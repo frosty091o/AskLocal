@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "AskLocal: Start",
+      "type": "shell",
+      "command": "python3 scripts/manage.py start",
+      "windows": { "command": "py -3 scripts/manage.py start" },
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "AskLocal: Setup",
+      "type": "shell",
+      "command": "python3 scripts/manage.py setup",
+      "windows": { "command": "py -3 scripts/manage.py setup" },
+      "problemMatcher": []
+    },
+    {
+      "label": "AskLocal: Test",
+      "type": "shell",
+      "command": "python3 scripts/manage.py test",
+      "windows": { "command": "py -3 scripts/manage.py test" },
+      "problemMatcher": []
+    }
+  ]
+}

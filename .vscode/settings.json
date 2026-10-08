@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+  "files.exclude": { "**/__pycache__": true },
+  "search.exclude": { "node_modules": true, "dist": true, ".venv": true }
+}
