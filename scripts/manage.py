@@ -31,7 +31,7 @@ def runtime():
     return env,pnpm
 
 
-def setup():
+def setup(with_demo=False):
     if sys.version_info<(3,12):raise SystemExit('Install Python 3.12 or newer, then rerun setup.')
     env,pnpm=runtime()
     if not shutil.which('node',path=env['PATH']) or not pnpm:
@@ -43,7 +43,28 @@ def setup():
     if not (ROOT/'.env').exists():shutil.copy(ROOT/'.env.example',ROOT/'.env')
     try:(ROOT/'.env').chmod(0o600)
     except OSError:pass
+    if with_demo:demo()
     print('\nSetup complete. Run python3 scripts/manage.py start.\nModel downloads: python3 scripts/manage.py models')
+
+
+def demo():
+    """Install the bundled recording workspace without replacing existing data."""
+    sys.path.insert(0,str(ROOT))
+    from backend.store import data_dir
+    source=ROOT/'demo/asklocal.sqlite3'
+    if not source.exists():raise SystemExit('The bundled demo database is missing.')
+    target=data_dir()/'asklocal.sqlite3'
+    target.parent.mkdir(parents=True,exist_ok=True)
+    try:
+        with target.open('xb') as dest,source.open('rb') as src:
+            shutil.copyfileobj(src,dest)
+    except FileExistsError:
+        print('Existing workspace kept unchanged. Demo accounts were not installed.')
+        return False
+    try:target.chmod(0o600)
+    except OSError:pass
+    print('Recording demo installed. Sign in with admin@demo.test or amy@demo.test; password: demo-only-123')
+    return True
 
 
 def start(no_browser=False):
@@ -87,12 +108,14 @@ def backup(destination):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description='AskLocal project tools')
-    parser.add_argument('command',choices=['setup','start','doctor','models','backup','test'])
+    parser.add_argument('command',choices=['setup','start','doctor','models','backup','test','demo'])
+    parser.add_argument('--demo',action='store_true',help='Install ready-made demo accounts during setup; preserve existing workspaces.')
     parser.add_argument('--no-browser',action='store_true')
     parser.add_argument('--destination')
     args=parser.parse_args()
     try:
-        if args.command=='setup':setup()
+        if args.command=='setup':setup(args.demo)
+        elif args.command=='demo':demo()
         elif args.command=='start':start(args.no_browser)
         elif args.command=='doctor':doctor()
         elif args.command=='models':

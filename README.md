@@ -8,6 +8,12 @@ Follow the setup instructions below for your operating system. A fresh download 
 
 After setup, open **http://127.0.0.1:8000** in your browser. On macOS, **Start AskLocal.command** can start the app again. If the app is already running, open the address instead of starting a second copy.
 
+## Quick setup for recording the video
+
+A ready-made fictional database and accounts are included in `demo/`. Use **`sh setup.sh --demo`** on macOS/Linux, or **`py -3 scripts/manage.py setup --demo`** on Windows. Then download the models and start the app using the commands below.
+
+Sign in as **admin@demo.test**, **amy@demo.test** or **jordan@demo.test**, all with password **demo-only-123**. This skips account creation on a fresh installation. Existing workspaces are preserved. See [the recording walkthrough](demo/README.md).
+
 ## What works
 
 - React interface matching the reference layout: sidebar, prominent question box, question cards and staff discussion cards.
@@ -127,7 +133,7 @@ To restore, stop AskLocal, preserve the existing data directory, then place the 
 
 ## GitHub sharing
 
-The `.gitignore` excludes configuration secrets, databases, dependency folders and generated output. Share source, lockfiles, instructions and tests. The fictional company seed is in `backend/store.py`.
+The `.gitignore` excludes configuration secrets, runtime databases, dependency folders and generated output. The only database included is `demo/asklocal.sqlite3`, generated from fictional data with ready-made demo accounts. It contains no API keys, sessions or saved chats. The fictional company seed is in `backend/store.py`.
 
 Each download creates an independent local workspace. GitHub does not host its Python server or local model. This version binds to your computer's loopback interface. A shared organisation server is a separate deployment with additional authentication, HTTPS and operational work.
 
