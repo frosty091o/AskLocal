@@ -124,3 +124,11 @@ def test_private_history_and_feedback(workspace):
     employee(c)
     assert c.get(f'/api/chats/{cid}').status_code==404
     assert c.post(f'/api/chats/{cid}/feedback',json={'kind':'incorrect'}).status_code==404
+
+
+def test_custom_port_origin_preserves_cross_origin_protection(workspace,monkeypatch):
+    monkeypatch.setenv('ASKLOCAL_PORT','8001')
+    c=workspace
+    assert c.post('/api/login',json={'email':'amy@demo.test','password':'demo-only-123'},headers={'Origin':'http://127.0.0.1:8001'}).status_code==200
+    assert c.post('/api/login',json={'email':'amy@demo.test','password':'demo-only-123'},headers={'Origin':'http://127.0.0.1:8000'}).status_code==403
+    assert c.post('/api/login',json={'email':'amy@demo.test','password':'demo-only-123'},headers={'Origin':'https://attacker.example'}).status_code==403

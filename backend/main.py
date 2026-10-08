@@ -42,7 +42,8 @@ app.add_middleware(TrustedHostMiddleware,allowed_hosts=['localhost','127.0.0.1',
 async def guard(request,call_next):
     if request.method not in ('GET','HEAD','OPTIONS'):
         origin=request.headers.get('origin')
-        if origin and origin not in ('http://127.0.0.1:8000','http://localhost:8000','http://127.0.0.1:5173','http://localhost:5173'):
+        port=os.getenv('ASKLOCAL_PORT','8000')
+        if origin and origin not in (f'http://127.0.0.1:{port}',f'http://localhost:{port}','http://127.0.0.1:5173','http://localhost:5173'):
             return Response('Cross-origin writes are not allowed.',status_code=403)
     response=await call_next(request)
     response.headers['X-Content-Type-Options']='nosniff'
@@ -147,7 +148,7 @@ def me(u=Depends(user)):return public_user(u)
 @app.get('/api/dashboard')
 def dashboard(u=Depends(user)):
     with store.db() as c:
-        threads=[dict(r) for r in c.execute('SELECT t.*,u.name author,(SELECT count(*) FROM replies r WHERE r.thread_id=t.id) reply_count FROM threads t JOIN users u ON u.id=t.author_id ORDER BY t.id DESC') if store.allowed(u,r['audience'])]
+        threads=[dict(r) for r in c.execute('SELECT t.*,u.name author,u.department author_department,(SELECT count(*) FROM replies r WHERE r.thread_id=t.id) reply_count FROM threads t JOIN users u ON u.id=t.author_id ORDER BY t.id DESC') if store.allowed(u,r['audience'])]
         docs=[dict(r) for r in c.execute('SELECT id,title,category,audience,created,thread_id FROM documents WHERE active=1 ORDER BY id DESC') if store.allowed(u,r['audience'])]
         history=[{'id':r['id'],'question':r['question']} for r in c.execute('SELECT id,question FROM chats WHERE user_id=? ORDER BY id DESC LIMIT 12',(u['id'],))]
     return {'threads':threads,'documents':docs,'history':history}
@@ -176,7 +177,7 @@ def new_thread(body:ThreadBody,u=Depends(user)):
 
 
 def get_thread(c,tid,u):
-    t=c.execute('SELECT t.*,u.name author FROM threads t JOIN users u ON u.id=t.author_id WHERE t.id=?',(tid,)).fetchone()
+    t=c.execute('SELECT t.*,u.name author,u.department author_department FROM threads t JOIN users u ON u.id=t.author_id WHERE t.id=?',(tid,)).fetchone()
     if not t or not store.allowed(u,t['audience']):raise HTTPException(404,'Discussion unavailable.')
     return dict(t)
 

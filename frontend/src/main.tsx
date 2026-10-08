@@ -24,7 +24,11 @@ import {
   ExternalLink,
   HelpCircle,
   Database,
+  Monitor,
+  Globe,
+  Clock3,
 } from "lucide-react";
+import { ChatGPTIcon } from "./ChatGPTIcon";
 import "./style.css";
 
 type User = {
@@ -42,6 +46,7 @@ type Thread = {
   kind: string;
   audience: string;
   author: string;
+  author_department: string;
   status: string;
   reply_count: number;
   created: string;
@@ -233,6 +238,8 @@ function App() {
     [threadDraft, setThreadDraft] = useState(""),
     [upload, setUpload] = useState(false),
     [filter, setFilter] = useState("all"),
+    [departmentFilter, setDepartmentFilter] = useState("all"),
+    [questionStatus, setQuestionStatus] = useState("all"),
     [librarySearch, setLibrarySearch] = useState("");
   const [adminData, setAdminData] = useState<{
     members: User[];
@@ -508,11 +515,13 @@ function App() {
           onClick={askChatGPT}
           disabled={busy || !chatgptConsent || !chatgptDraft.trim()}
         >
+          <ChatGPTIcon />
           Ask ChatGPT
         </button>
       </div>
     ) : (
       <button className="secondary" onClick={() => setChatgptOpen(true)}>
+        <ChatGPTIcon />
         Ask ChatGPT generally
       </button>
     );
@@ -523,9 +532,103 @@ function App() {
         className="secondary"
         onClick={() => beginThread(chat?.question ?? "")}
       >
-        <Plus size={17} />
+        <MessageSquare size={17} />
         Post to team board
       </button>
+    );
+  }
+  function answerChoices(showGeneral = false, showChatGPT = true) {
+    return (
+      <div className="answer-next-steps">
+        <h3>How would you like to continue?</h3>
+        <div
+          className="answer-options"
+          role="group"
+          aria-label="Choose how to get help"
+        >
+          {showGeneral && (
+            <section className="answer-option">
+              <div className="answer-option-label">
+                {cfg?.web_enabled ? (
+                  <Globe size={18} />
+                ) : cfg?.provider === "openai" ? (
+                  <ChatGPTIcon />
+                ) : (
+                  <Monitor size={18} />
+                )}
+                {cfg?.web_enabled || cfg?.provider === "openai"
+                  ? "Online"
+                  : "On this computer"}
+              </div>
+              <h4>
+                {cfg?.web_enabled
+                  ? "Search the public web"
+                  : cfg?.provider === "openai"
+                    ? "Ask ChatGPT"
+                    : "Local AI · general answer"}
+              </h4>
+              <p>
+                {cfg?.web_enabled
+                  ? "Search public sources through OpenAI. Only send a question without company or personal information."
+                  : cfg?.provider === "openai"
+                    ? "Send this general question to OpenAI without company documents. Only continue if it contains no private information."
+                    : "Get a general answer from the AI running on this computer."}
+              </p>
+              <button className="secondary" onClick={general} disabled={busy}>
+                {cfg?.web_enabled ? (
+                  <Globe size={18} />
+                ) : cfg?.provider === "openai" ? (
+                  <ChatGPTIcon />
+                ) : (
+                  <Monitor size={18} />
+                )}
+                {cfg?.web_enabled
+                  ? "Search public sources"
+                  : cfg?.provider === "openai"
+                    ? "Get a ChatGPT answer"
+                    : "Ask local AI generally"}
+              </button>
+            </section>
+          )}
+          {showChatGPT && (
+            <section className="answer-option">
+              <div className="answer-option-label">
+                <ChatGPTIcon />
+                Online
+              </div>
+              <h4>Ask ChatGPT</h4>
+              <p>
+                Review your question before sending it to OpenAI. Company
+                documents and chat history stay out of this request.
+              </p>
+              {chatgptOpen ? (
+                <button
+                  className="secondary"
+                  onClick={() => setChatgptOpen(false)}
+                >
+                  <X size={18} />
+                  Cancel ChatGPT request
+                </button>
+              ) : (
+                chatgptAction()
+              )}
+            </section>
+          )}
+        </div>
+        {showChatGPT && chatgptOpen && chatgptAction()}
+        <section className="answer-team-help" aria-label="Ask your team">
+          <div>
+            <h4>
+              <Users size={18} /> Need a company-specific answer?
+            </h4>
+            <p>
+              Post to your team board so coworkers can help. An admin can
+              confirm the answer for future company searches.
+            </p>
+          </div>
+          {discussionAction()}
+        </section>
+      </div>
     );
   }
   useEffect(() => {
@@ -628,6 +731,33 @@ function App() {
     (t) => t.kind === "question" && t.status !== "approved",
   );
   const discussions = data.threads.filter((t) => t.kind === "discussion");
+  const departmentOptions = Array.from(
+    new Set([
+      "People",
+      "Operations",
+      "IT",
+      "Finance",
+      "management",
+      ...data.threads.map((t) => t.author_department).filter(Boolean),
+    ]),
+  ).sort((a, b) => a.localeCompare(b));
+  const visibleThreads = data.threads.filter(
+    (t) =>
+      (filter === "all" ||
+        (filter === "approved"
+          ? t.status === "approved"
+          : t.kind === filter)) &&
+      (departmentFilter === "all" ||
+        t.author_department === departmentFilter) &&
+      (filter !== "question" ||
+        questionStatus === "all" ||
+        (questionStatus === "answered"
+          ? t.status === "approved"
+          : t.status !== "approved")),
+  );
+  const conversationFiltersActive =
+    departmentFilter !== "all" ||
+    (filter === "question" && questionStatus !== "all");
   const recentQuestions = data.history
     .filter(
       (h, i, history) =>
@@ -672,7 +802,14 @@ function App() {
         <p>{t.body}</p>
         <div className="card-footer">
           <span className="avatar small">{initials(t.author)}</span>
-          <span>{t.author.split(" ")[0]}</span>
+          <span className="thread-author">
+            <span>{t.author.split(" ")[0]}</span>
+            <small>
+              {t.author_department === "management"
+                ? "Management"
+                : t.author_department}
+            </small>
+          </span>
           <span className="reply-count">
             <MessageSquare size={15} />
             {t.reply_count} {t.reply_count === 1 ? "reply" : "replies"}
@@ -1018,14 +1155,6 @@ function App() {
             </strong>
           </div>
           <div className="top-right">
-            <Badge kind={cfg?.provider === "openai" ? "amber" : "blue"}>
-              {cfg?.provider === "openai" ? (
-                <ExternalLink size={13} />
-              ) : (
-                <Lock size={13} />
-              )}{" "}
-              {cfg?.provider === "openai" ? "OpenAI mode" : "Local mode"}
-            </Badge>
             <span className="company-wordmark">company</span>
           </div>
         </header>
@@ -1210,7 +1339,13 @@ function App() {
                                     : "Follow-up"}
                       </Badge>
                     </div>
-                    <AnswerText text={chat.answer} />
+                    <AnswerText
+                      text={
+                        chat.route === "general"
+                          ? "We couldn’t find an answer in company knowledge. Choose an AI below for a general answer, or ask your team."
+                          : chat.answer
+                      }
+                    />
                     {chat.sources.length > 0 && (
                       <div className="sources">
                         <h3>Sources</h3>
@@ -1246,67 +1381,31 @@ function App() {
                       </div>
                     )}
                     {chat.route === "company" && (
-                      <div className="answer-actions">
-                        {chat.similar_threads?.map((t) => (
-                          <button
-                            className="secondary"
-                            key={t.id}
-                            onClick={() => openThread(t.id)}
-                          >
-                            {t.title}
-                          </button>
-                        ))}
-                        <button
-                          className="primary"
-                          onClick={() => beginThread(chat.question)}
-                        >
-                          <Plus size={17} />
-                          Start a discussion
-                        </button>
-                        {chatgptAction()}
-                      </div>
+                      <>
+                        {!!chat.similar_threads?.length && (
+                          <div className="answer-actions">
+                            {chat.similar_threads?.map((t) => (
+                              <button
+                                className="secondary"
+                                key={t.id}
+                                onClick={() => openThread(t.id)}
+                              >
+                                <MessageSquare size={17} />
+                                {t.title}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {answerChoices()}
+                      </>
                     )}
-                    {chat.route === "general" && (
-                      <div className="general-action">
-                        <p>
-                          {cfg?.web_enabled
-                            ? "This sends this question to OpenAI for public web search."
-                            : cfg?.provider === "openai"
-                              ? "This sends this question to OpenAI without company documents."
-                              : "This uses your local model without company documents or live web access."}{" "}
-                          Only continue if the question contains no private
-                          information.
-                        </p>
-                        <div className="action-buttons">
-                          <button
-                            className="secondary"
-                            onClick={general}
-                            disabled={busy}
-                          >
-                            {cfg?.web_enabled
-                              ? "Search public sources"
-                              : cfg?.provider === "openai"
-                                ? "Get a ChatGPT answer"
-                                : "Get a local answer"}
-                          </button>
-                          {discussionAction()}
-                          {chatgptAction()}
-                        </div>
-                      </div>
-                    )}
-                    {chat.route === "general_answer" && (
-                      <div className="general-action">
-                        <p>
-                          {chat.provider === "openai"
-                            ? "Share this question with your team for discussion."
-                            : "Want your team to weigh in, or another general answer?"}
-                        </p>
-                        <div className="action-buttons">
-                          {discussionAction()}
-                          {chat.provider !== "openai" && chatgptAction()}
-                        </div>
-                      </div>
-                    )}
+                    {chat.route === "general" &&
+                      answerChoices(
+                        true,
+                        cfg?.provider !== "openai" || !!cfg?.web_enabled,
+                      )}
+                    {chat.route === "general_answer" &&
+                      answerChoices(false, chat.provider !== "openai")}
                     <div className="feedback">
                       <span>Was this useful?</span>
                       <button onClick={() => feedback("helpful")}>
@@ -1318,6 +1417,7 @@ function App() {
                         Report incorrect
                       </button>
                       <button onClick={() => feedback("outdated")}>
+                        <Clock3 size={15} />
                         Outdated
                       </button>
                       <small>Reports share this question with the admin.</small>
@@ -1392,29 +1492,65 @@ function App() {
                   </button>
                 ))}
               </div>
-              <div className="card-grid">
-                {data.threads
-                  .filter(
-                    (t) =>
-                      filter === "all" ||
-                      (filter === "approved"
-                        ? t.status === "approved"
-                        : t.kind === filter),
-                  )
-                  .map(threadCard)}
+              <div className="conversation-filters">
+                <label>
+                  Posted by department
+                  <select
+                    aria-label="Filter by department"
+                    value={departmentFilter}
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                  >
+                    <option value="all">All departments</option>
+                    {departmentOptions.map((d) => (
+                      <option key={d} value={d}>
+                        {d === "management" ? "Management" : d}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {filter === "question" && (
+                  <label>
+                    Question status
+                    <select
+                      aria-label="Filter by question status"
+                      value={questionStatus}
+                      onChange={(e) => setQuestionStatus(e.target.value)}
+                    >
+                      <option value="all">All questions</option>
+                      <option value="unanswered">Unanswered</option>
+                      <option value="answered">Answered</option>
+                    </select>
+                  </label>
+                )}
+                <div className="conversation-filter-summary">
+                  <p role="status">
+                    {visibleThreads.length}{" "}
+                    {visibleThreads.length === 1
+                      ? "conversation"
+                      : "conversations"}
+                  </p>
+                  {conversationFiltersActive && (
+                    <button
+                      className="text-button"
+                      onClick={() => {
+                        setDepartmentFilter("all");
+                        setQuestionStatus("all");
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
               </div>
-              {!data.threads.filter(
-                (t) =>
-                  filter === "all" ||
-                  (filter === "approved"
-                    ? t.status === "approved"
-                    : t.kind === filter),
-              ).length && (
+              <div className="card-grid">{visibleThreads.map(threadCard)}</div>
+              {!visibleThreads.length && (
                 <Empty
                   text={
-                    filter === "approved"
-                      ? "No approved answers yet. An admin can confirm an answer from a team question."
-                      : "Nothing here yet. Start the first conversation."
+                    conversationFiltersActive
+                      ? "No conversations match these filters. Clear filters to see more."
+                      : filter === "approved"
+                        ? "No approved answers yet. An admin can confirm an answer from a team question."
+                        : "Nothing here yet. Start the first conversation."
                   }
                 />
               )}

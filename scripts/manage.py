@@ -67,12 +67,13 @@ def demo():
     return True
 
 
-def start(no_browser=False):
+def start(no_browser=False,port=8000):
     if not PY.exists() or not (ROOT/'dist/index.html').exists():raise SystemExit('Run setup first.')
+    if not 1<=port<=65535:raise SystemExit('Choose a port between 1 and 65535.')
     if not no_browser:
         import threading
-        threading.Timer(2,lambda:webbrowser.open('http://127.0.0.1:8000')).start()
-    run([PY,'-m','uvicorn','backend.main:app','--host','127.0.0.1','--port','8000'])
+        threading.Timer(2,lambda:webbrowser.open(f'http://127.0.0.1:{port}')).start()
+    run([PY,'-m','uvicorn','backend.main:app','--host','127.0.0.1','--port',str(port)],dict(os.environ,ASKLOCAL_PORT=str(port)))
 
 
 def doctor():
@@ -111,12 +112,13 @@ if __name__=='__main__':
     parser.add_argument('command',choices=['setup','start','doctor','models','backup','test','demo'])
     parser.add_argument('--demo',action='store_true',help='Install ready-made demo accounts during setup; preserve existing workspaces.')
     parser.add_argument('--no-browser',action='store_true')
+    parser.add_argument('--port',type=int,default=8000,help='Local port to use when starting the app.')
     parser.add_argument('--destination')
     args=parser.parse_args()
     try:
         if args.command=='setup':setup(args.demo)
         elif args.command=='demo':demo()
-        elif args.command=='start':start(args.no_browser)
+        elif args.command=='start':start(args.no_browser,args.port)
         elif args.command=='doctor':doctor()
         elif args.command=='models':
             if not shutil.which('ollama'):raise SystemExit('Install Ollama from https://ollama.com first.')
